@@ -1,0 +1,5 @@
+FirefoxPortable
+VS_code
+Snapshots
+Logs
+logs

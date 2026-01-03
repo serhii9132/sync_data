@@ -7,12 +7,12 @@ import argparse
 from typing import Dict, List
 from src import mnt, constants, path_util
 
-def parse_args(list_drives: List[str]) -> Dict[str, any]:
+def parse_args(list_sync_dirs: List[str]) -> Dict[str, any]:
     parser = argparse.ArgumentParser(description='Synchronization files between local storage and external HDD')
     group = parser.add_mutually_exclusive_group()
 
-    for drive in list_drives:
-        if drive['uuid'] == os.getenv('UUID_VOL_SRC_DRIVE_1'):
+    for drive in list_sync_dirs:
+        if 'vm' in drive:
             group.add_argument('-n', '--no_vm', action='store_true', help='Copies all files, ignoring directories which store images of virtual machines')
 
     group.add_argument('-a', '--all', action='store_true', help='Copies all files, which are located on the drive')
@@ -84,7 +84,7 @@ def execute_rsync_phase(preset: Dict[str, str], sync_dirs: List[str], dry_run: b
 def main() -> None:
     backup_profile = mnt.update_backup_profile()
     list_sync_dirs = get_sync_dirs(backup_profile)
-    cli_args = parse_args(backup_profile.get('drives'))
+    cli_args = parse_args(list_sync_dirs)
     upload_preset = get_upload_preset(backup_profile)
 
     if 'no_vm' in cli_args:

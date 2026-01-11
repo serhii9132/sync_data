@@ -1,6 +1,5 @@
 import os
 import sys
-import datetime
 import posixpath
 import subprocess
 import argparse
@@ -23,24 +22,47 @@ def parse_args(list_sync_dirs: List[str]) -> Dict[str, any]:
     else:
         return args
 
-def get_sync_dirs(backup_profile: Dict[str, any]) -> List[str]:
-    sync_dirs = []
-    for drive in backup_profile['drives']:
-        sync_dirs.extend(posixpath.join(drive['mnt_point'], d) for d in drive.get('sync_dirs', []))
-    return sync_dirs
-
-def get_log_paths(log_dir: str, drive_label: str) -> Dict[str, str]:
-    timestamp = datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
-    return {
-        "dry_run": posixpath.join(log_dir, f"{timestamp}_{drive_label}_DRY_RUN.log"),
-        "upload": posixpath.join(log_dir, f"{timestamp}_{drive_label}_UPLOAD.log"),
-    }
-
 def get_upload_preset(backup_profile: Dict[str, any]) -> Dict[str, any]:
-    upload_preset = mnt.get_mnt_point_dest()
+    """
+    Constructs the complete set of settings (preset) for the backup 
+    (upload) operation to the target drive.
+    The process involves:
+    1. Identifying the mount point and UUID of the connected target drive.
+    2. Generating the full paths for the log files (dry-run and upload) 
+       based on the drive's UUID.
+    3. Calculating the full path to the destination directory by combining 
+       the target drive's mount point with the target directory name from 
+       the backup profile ('name_target_dir').
 
-    subprocess.run(['mkdir', '-p', constants.PATH_LOG_DIR], stderr=sys.stderr, stdout=sys.stdout)
-    log_paths = get_log_paths(constants.PATH_LOG_DIR, upload_preset.get('uuid'))
+    :returns: The updated 'upload_preset' Dictionary (Dict), which includes:
+              - 'uuid' (str): The UUID of the target drive.
+              - 'mnt_point' (str): The mount point of the target drive.
+              - 'full_path_dest_dir' (str): The full POSIX path to the 
+                destination directory on the external drive.
+              - 'path_log_file_dry_run_mode' (str): The full path to the 
+                dry-run log file.
+              - 'path_log_file_upload_mode' (str): The full path to the 
+                actual upload log file.
+
+    ## Example
+    ## Input Data (backup_profile)
+    ```python
+    {'name_target_dir': 'test_target_dir', 'drives': [...]} 
+    ```
+
+    ## Expected Output (upload_preset)
+    ```python
+    {
+        'uuid': 'DCF97D17', 
+        'mnt_point': '/h',
+        'full_path_dest_dir': '/h/test_target_dir',
+        'path_log_file_dry_run_mode': '/c/app_data/log/backup/1970-01-01_10-00-00_DCF97D17_DRY_RUN.log',
+        'path_log_file_upload_mode': '/c/app_data/log/backup/1970-01-01_10-00-00_DCF97D17_UPLOAD.log'
+    }
+    ```
+    """
+    upload_preset = mnt.get_mnt_point_dest()
+    log_paths = path_util.get_log_paths(constants.PATH_LOG_DIR, upload_preset.get('uuid'))
 
     upload_preset.update({
         "full_path_dest_dir": posixpath.join(upload_preset.get('mnt_point'), backup_profile.get('name_target_dir')),
@@ -83,7 +105,7 @@ def execute_rsync_phase(preset: Dict[str, str], sync_dirs: List[str], dry_run: b
 
 def main() -> None:
     backup_profile = mnt.update_backup_profile()
-    list_sync_dirs = get_sync_dirs(backup_profile)
+    list_sync_dirs = path_util.get_sync_dirs(backup_profile)
     cli_args = parse_args(list_sync_dirs)
     upload_preset = get_upload_preset(backup_profile)
 
